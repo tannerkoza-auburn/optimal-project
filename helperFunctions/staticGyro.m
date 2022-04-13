@@ -43,6 +43,11 @@ function [start, stop] = staticGyro(gyro, static_thresh)
     start = static_idxs(group_ends(max_start) + 1);
     stop = static_idxs(group_ends(max_start + 1));
 
+    if ~isscalar(start) || ~isscalar(stop)
+        error(['There is no static period given this threshold. Increase' ...
+            ' and evaluate the plot for validity.']);
+    end
+
 %% Plotting
     
     lim = 0.5;
