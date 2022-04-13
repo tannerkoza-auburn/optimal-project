@@ -2,6 +2,7 @@
 
 clear
 clc
+close all
 
 %% Data Import
 
@@ -24,9 +25,8 @@ numSamps = length(gyro); % # of Samples
 
 N = 500; % Number of Particles
 q = [ones(1,N); zeros(3,N)]; % Initial Quaternion
-
-sigmaGyro = 0.001;
-
+[start,stop] = staticGyro(gyro, 0.2); % Static Indices
+sigmaGyro = std(gyro(start:stop,:)); % 
 
 %% Particle Filter
 
@@ -35,7 +35,7 @@ for i = 1:numSamps
     for j = 1:N
     
         % Time Update
-        gyroP = gyro(i,:) + sigmaGyro*rand(1,3); % Particle Gyro
+        gyroP = gyro(i,:) + sigmaGyro*rand; % Particle Gyro
 
         A = [1 -0.5*gyroP(1)*dt -0.5*gyroP(2)*dt -0.5*gyroP(3)*dt;... 
             0.5*gyroP(1)*dt 1 0.5*gyroP(3)*dt -0.5*gyroP(2)*dt;...
