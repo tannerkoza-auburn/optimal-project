@@ -7,6 +7,9 @@ close all
 % Nicholas Ott questions from paper:
     % Eq (22) -> what is DCM_*q_hat? (second DCM)
     % Eq (24) -> what is C?
+    % Eq (15) -> we need to define DCM (this is probably simple I am just
+        % not there yet
+    
     
 %% Data Import
 
