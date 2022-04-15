@@ -24,25 +24,27 @@ numSamps = length(gyro); % # of Samples
 %% Particle Filter Parameters
 
 N = 500; % Number of Particles
-q = [ones(1,N); zeros(3,N)]; % Initial Quaternion
+qP = [ones(1,N); zeros(3,N)]; % Initial Quaternions for Particles
+wP = (1/N)*ones(1,N); % Initial Particle Weights
+
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
-sigmaGyro = std(gyro(start:stop,:)); % 
+sigmaGyro = std(gyro(start:stop,:)); % Gyro Floor Noise Standard Deviation
 
 %% Particle Filter
 
 for i = 1:numSamps
 
     for j = 1:N
-    
+
         % Time Update
         gyroP = gyro(i,:) + sigmaGyro*rand; % Particle Gyro
 
-        A = [1 -0.5*gyroP(1)*dt -0.5*gyroP(2)*dt -0.5*gyroP(3)*dt;... 
+        F = [1 -0.5*gyroP(1)*dt -0.5*gyroP(2)*dt -0.5*gyroP(3)*dt;...
             0.5*gyroP(1)*dt 1 0.5*gyroP(3)*dt -0.5*gyroP(2)*dt;...
             0.5*gyroP(2)*dt -0.5*gyroP(3)*dt 1 0.5*gyroP(1)*dt;...
             0.5*gyroP(3)*dt 0.5*gyroP(2)*dt -0.5*gyroP(1)*dt 1];
-        
-        q(:,j) = A*q(:,j); % Propagation
+
+        qP(:,j) = F*qP(:,j); % Particle Propagation
 
     end
 
@@ -52,4 +54,10 @@ for i = 1:numSamps
     psi = atan2(mag(i,3)*sin(phi) - mag(i,2)*cos(phi), ...
         mag(i,1)*cos(theta) + mag(i,2)*sin(theta)*sin(phi) ...
         + mag(i,3)*sin(theta)*cos(phi)); % Yaw
+
+    qM = [cos(psi/2)*cos(theta/2)*cos(phi/2) + sin(psi/2)*sin(theta/2)*sin(phi/2);
+        cos(psi/2)*cos(theta/2)*sin(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2);
+        cos(psi/2)*sin(theta/2)*cos(phi/2) + sin(psi/2)*cos(theta/2)*sin(phi/2);
+        sin(psi/2)*cos(theta/2)*cos(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2)];
+
 end
