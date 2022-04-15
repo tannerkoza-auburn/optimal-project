@@ -46,4 +46,10 @@ for i = 1:numSamps
 
     end
 
+    % Measurement Update
+    theta = atan2(-acc(i,1),sqrt(acc(i,2)^2 + acc(i,3)^2)); % Pitch
+    phi = atan2(acc(i,2),acc(i,3)); % Roll
+    psi = atan2(mag(i,3)*sin(phi) - mag(i,2)*cos(phi), ...
+        mag(i,1)*cos(theta) + mag(i,2)*sin(theta)*sin(phi) ...
+        + mag(i,3)*sin(theta)*cos(phi)); % Yaw
 end
