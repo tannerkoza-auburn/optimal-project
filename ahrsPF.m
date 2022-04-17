@@ -37,6 +37,8 @@ sigmaGyro = std(gyro(start:stop,:)); %
 
 q_hat = [1;0;0;0]; % overall state estimate
 
+q_calc = 0;
+
 W = 1/N*ones(1,N); % particle filter weights
 C = 1; % Confirm what this is (but I think this is a variance term in the posterior weight calcualtion)
 
@@ -46,10 +48,10 @@ for i = 1:numSamps
 
     for j = 1:N
 
-        % Time Update
-        samp = gyro(i,:)' + sigmaGyro'.*rand(3,1);
-        qP(:,j) = q_hat(:,i) + [0;samp(1);samp(2);samp(3)]; % resampling
-        gyroP = gyro(i,:); % Particle Gyro
+        % Time Update (think this is also wrong)
+        samp = gyro(i,:)' + sigmaGyro'.*rand(3,1); % uniform distribution (mean is gyro noise, variance is noise floor)
+        qP(:,j) = q_hat(:,i); % resampling
+        gyroP = gyro(i,:)' + samp; % Particle Gyro
         
         F = [1 -0.5*gyroP(1)*dt -0.5*gyroP(2)*dt -0.5*gyroP(3)*dt;...
             0.5*gyroP(1)*dt 1 0.5*gyroP(3)*dt -0.5*gyroP(2)*dt;...
@@ -81,18 +83,24 @@ for i = 1:numSamps
         rY = dcm_diff(:,2);
         rZ = dcm_diff(:,3);
         
-        L = 1/norm(rX.*rY.*rZ); % Likelihood (this might be wrong)
+        L = (4/3)*pi*norm(rX)*norm(rY)*norm(rZ); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
         
         W(j) = W(j)*L; % dont't think this is wrong
-        
+                
     end
+    
+    C = sum(W);
     
     for j = 1:N
         
-        sum = W(j)*qP(:,j); % I dont think this is wrong
+        q_calc = q_calc + W(j)*qP(:,j)/C; % I dont think this is wrong
            
     end
     
-    q_hat(:,i+1) = sum; % might be wrong
+    q_hat(:,i+1) = q_calc; % might be wrong
+    
+    q_calc = 0;
+    
+    C = 0;
     
 end
