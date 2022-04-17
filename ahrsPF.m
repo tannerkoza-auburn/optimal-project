@@ -47,14 +47,16 @@ for i = 1:numSamps
     for j = 1:N
 
         % Time Update
-        gyroP = gyro(i,:) + sigmaGyro*rand; % Particle Gyro
+        samp = gyro(i,:)' + sigmaGyro'.*rand(3,1);
+        qP(:,j) = q_hat(:,i) + [0;samp(1);samp(2);samp(3)]; % resampling
+        gyroP = gyro(i,:); % Particle Gyro
         
         F = [1 -0.5*gyroP(1)*dt -0.5*gyroP(2)*dt -0.5*gyroP(3)*dt;...
             0.5*gyroP(1)*dt 1 0.5*gyroP(3)*dt -0.5*gyroP(2)*dt;...
             0.5*gyroP(2)*dt -0.5*gyroP(3)*dt 1 0.5*gyroP(1)*dt;...
             0.5*gyroP(3)*dt 0.5*gyroP(2)*dt -0.5*gyroP(1)*dt 1];
         
-        qP(:,j) = F*qP(:,j); % Particle Propagation (time Update)
+        qP(:,j) = F*qP(:,j); % Particle Propagation (time Update) % propogate from the same estimate?
         
         dcm_time = dcm_calc(qP(:,j)); % DCM from quaternion estimate
         
@@ -79,12 +81,18 @@ for i = 1:numSamps
         rY = dcm_diff(:,2);
         rZ = dcm_diff(:,3);
         
-        L = 1/norm(rX.*rY.*rZ); % Likelihood
+        L = 1/norm(rX.*rY.*rZ); % Likelihood (this might be wrong)
         
-        W(j) = W(j)*L;
+        W(j) = W(j)*L; % dont't think this is wrong
         
     end
     
-    disp('one iteration')
-
+    for j = 1:N
+        
+        sum = W(j)*qP(:,j); % I dont think this is wrong
+           
+    end
+    
+    q_hat(:,i+1) = sum; % might be wrong
+    
 end
