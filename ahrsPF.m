@@ -83,24 +83,43 @@ for i = 1:numSamps
         rY = dcm_diff(:,2);
         rZ = dcm_diff(:,3);
         
-        L = (4/3)*pi*norm(rX)*norm(rY)*norm(rZ); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
+        L = 1/(norm(rX)*norm(rY)*norm(rZ)); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
         
         W(j) = W(j)*L; % dont't think this is wrong
                 
     end
     
-    C = sum(W);
+    W = W./sum(W); % normalize weights
     
     for j = 1:N
         
-        q_calc = q_calc + W(j)*qP(:,j)/C; % I dont think this is wrong
+        q_calc = q_calc + W(j)*qP(:,j); % I dont think this is wrong
            
     end
     
     q_hat(:,i+1) = q_calc; % might be wrong
     
     q_calc = 0;
-    
-    C = 0;
-    
+        
 end
+
+%% Converting to Euler Angles
+
+[r,c] = size(q_hat);
+
+q_hat = q_hat';
+
+for i = 1:r
+    eul(i,:) = quat2eul(q_hat(i,:),'XYZ');
+end
+
+figure()
+subplot(3,1,1)
+plot(eul(:,1),'.')
+title('Roll')
+subplot(3,1,2)
+plot(eul(:,2),'.')
+title('Pitch')
+subplot(3,1,3)
+plot(eul(:,3),'.')
+title('Yaw')
