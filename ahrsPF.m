@@ -31,30 +31,60 @@ numSamps = length(gyro); % # of Samples
 %% Particle Filter Parameters
 
 N = 500; % Number of Particles
-q(:,:,:) = [ones(1,N); zeros(3,N)]; % Initial Quaternion
+qP = [ones(1,N); zeros(3,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
 sigmaGyro = std(gyro(start:stop,:)); % 
 
-depth = 1; % I want to track how particles evolve over time so add a third dimension to matrix of particles
+q_hat = [1;0;0;0]; % overall state estimate
+
+W = 1/N*ones(1,N); % particle filter weights
+C = 1; % Confirm what this is (but I think this is a variance term in the posterior weight calcualtion)
 
 %% Particle Filter
 
 for i = 1:numSamps
 
     for j = 1:N
-    
-        % Time Update
-        gyroP = gyro(i,:) + sigmaGyro*rand; % Particle Gyro (applies the same input plus random noise to all particles)
 
-        A = [1 -0.5*gyroP(1)*dt -0.5*gyroP(2)*dt -0.5*gyroP(3)*dt;... 
+        % Time Update
+        gyroP = gyro(i,:) + sigmaGyro*rand; % Particle Gyro
+        
+        F = [1 -0.5*gyroP(1)*dt -0.5*gyroP(2)*dt -0.5*gyroP(3)*dt;...
             0.5*gyroP(1)*dt 1 0.5*gyroP(3)*dt -0.5*gyroP(2)*dt;...
-            0.5*gyroP(2)*dt -2.5*gyroP(3)*dt 1 0.5*gyroP(1)*dt;...
+            0.5*gyroP(2)*dt -0.5*gyroP(3)*dt 1 0.5*gyroP(1)*dt;...
             0.5*gyroP(3)*dt 0.5*gyroP(2)*dt -0.5*gyroP(1)*dt 1];
         
-        q(:,j,depth+1) = A*q(:,j,depth); % Propagation
-
+        qP(:,j) = F*qP(:,j); % Particle Propagation (time Update)
+        
+        dcm_time = dcm_calc(qP(:,j)); % DCM from quaternion estimate
+        
+        % Measurement Update
+        theta = atan2(-acc(i,1),sqrt(acc(i,2)^2 + acc(i,3)^2)); % Pitch
+        phi = atan2(acc(i,2),acc(i,3)); % Roll
+        psi = atan2(mag(i,3)*sin(phi) - mag(i,2)*cos(phi), ...
+            mag(i,1)*cos(theta) + mag(i,2)*sin(theta)*sin(phi) ...
+            + mag(i,3)*sin(theta)*cos(phi)); % Yaw
+        
+        % --- Measured Quaternion! --- %
+        qM(:,j) = [cos(psi/2)*cos(theta/2)*cos(phi/2) + sin(psi/2)*sin(theta/2)*sin(phi/2);
+                   cos(psi/2)*cos(theta/2)*sin(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2);
+                   cos(psi/2)*sin(theta/2)*cos(phi/2) + sin(psi/2)*cos(theta/2)*sin(phi/2);
+                   sin(psi/2)*cos(theta/2)*cos(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2)];
+        
+        dcm_meas = dcm_calc(qM(:,j));
+        
+        % --- Likeliehood calc --- %
+        dcm_diff = dcm_meas-dcm_time; % difference in DCM matrices
+        rX = dcm_diff(:,1);
+        rY = dcm_diff(:,2);
+        rZ = dcm_diff(:,3);
+        
+        L = 1/norm(rX.*rY.*rZ); % Likelihood
+        
+        W(j) = W(j)*L;
+        
     end
     
-    depth = depth + 1;
+    disp('one iteration')
 
 end
