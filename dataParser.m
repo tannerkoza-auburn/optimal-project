@@ -3,8 +3,14 @@
 clear
 clc
 
+useText = 0;
+
+useBag = 1; % bag parser is setup for vectornav IMU!
+
 %% Restructure Data
 
+if useText
+    
 % Directory Declaration
 inDir = 'data/rawData/';
 inFiles = [dir(strcat(inDir,'*.txt')); dir(strcat(inDir,'*.bag'))];
@@ -47,4 +53,65 @@ for i = 1:numFiles
 
     save(destFile,"imu")
     clearvars imu
+end
+
+end
+
+if useBag
+    
+    bagfilename = 'vn300_ahrsPF_2022-04-18-14-21-51.bag';
+    bag = rosbag(bagfilename);
+    
+    %show all topics
+    topics=bag.AvailableTopics;
+    %select topic
+    selected_topic = select(bag,'Topic','/vectornav/IMU');
+    %read topic message
+    struct = readMessages(selected_topic,'DataFormat','struct');
+    
+    % --- Gyro and Accel --- %
+    
+    for i = 1:length(struct)
+       
+        % --- IMU Gyro --- %
+        imu.gyro(i,1) = struct{i}.AngularVelocity.X;
+        imu.gyro(i,2) = struct{i}.AngularVelocity.Y;
+        imu.gyro(i,3) = struct{i}.AngularVelocity.Z;
+        
+        % --- IMU Accel --- %
+        imu.acc(i,1) = struct{i}.LinearAcceleration.X;
+        imu.acc(i,2) = struct{i}.LinearAcceleration.Y;
+        imu.acc(i,3) = struct{i}.LinearAcceleration.Z;
+        
+        imu.time(i) = double(struct{i}.Header.Stamp.Sec)+double(struct{i}.Header.Stamp.Nsec)*1e-9;
+        
+    end
+    
+    % --- Mag --- %
+    
+    selected_topic = select(bag,'Topic','/vectornav/Mag');
+    struct = readMessages(selected_topic,'DataFormat','struct');
+    
+    for i = 1:length(struct)
+        
+       imu.mag(i,1) = struct{i}.MagneticField.X;
+       imu.mag(i,2) = struct{i}.MagneticField.Y;
+       imu.mag(i,3) = struct{i}.MagneticField.Z;
+        
+    end
+    
+    selected_topic = select(bag,'Topic','/vectornav/Odom');
+    struct = readMessages(selected_topic,'DataFormat','struct');
+    
+    for i = 1:length(struct)
+       
+        imu.odom(i,1) = struct{i}.Pose.Pose.Orientation.W;
+        imu.odom(i,2) = struct{i}.Pose.Pose.Orientation.X;
+        imu.odom(i,3) = struct{i}.Pose.Pose.Orientation.Y;
+        imu.odom(i,4) = struct{i}.Pose.Pose.Orientation.Z;
+        
+    end
+    
+    save('data/structData/vn300Data.mat','imu');
+    
 end
