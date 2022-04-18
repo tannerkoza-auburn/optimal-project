@@ -15,22 +15,26 @@ close all
 
 % NOTE: If unable to find file or directory, run dataParser.m or check your
 % file name.
-load('softsysIMU.mat');
+load('vn300Data.mat');
 
 % Extract Fields from IMU Structure
 acc = imu.acc;
 gyro = imu.gyro;
 mag = imu.mag;
 
+orient = imu.odom;
+
 %% Time Parameters
 
-fs = 128; % Sampling Frequency (Hz)
-dt = 1/fs; % Sampling Period (s)
+% fs = 128; % Sampling Frequency (Hz)
+% dt = 1/fs; % Sampling Period (s)
+
+dt = mean(diff(imu.time));
 numSamps = length(gyro); % # of Samples
 
 %% Particle Filter Parameters
 
-N = 500; % Number of Particles
+N = 1000; % Number of Particles
 qP = [ones(1,N); zeros(3,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
 sigmaGyro = std(gyro(start:stop,:)); % 
@@ -44,7 +48,7 @@ C = 1; % Confirm what this is (but I think this is a variance term in the poster
 
 %% Particle Filter
 
-for i = 1:numSamps
+for i = 1:numSamps-1
 
     for j = 1:N
 
@@ -107,23 +111,44 @@ for i = 1:numSamps
         
 end
 
+disp('ended')
 %% Converting to Euler Angles
 
 [r,c] = size(q_hat);
 
 q_hat = q_hat';
 
-for i = 1:r
-    eul(i,:) = quat2eul(q_hat(i,:),'XYZ');
+for i = 1:c
+    eul(i,:) = quat2eul(q_hat(i,:));
 end
+
+[r,c] = size(orient);
+
+for i = 1:r
+   truth(i,:) = quat2eul(orient(i,:)); 
+end
+
+yaw = rad2deg(eul(:,1));
+pitch = rad2deg(eul(:,2));
+roll = rad2deg(eul(:,3));
+
+yaw_truth = rad2deg(truth(:,1));
+pitch_truth = rad2deg(truth(:,2));
+roll_truth = rad2deg(truth(:,3));
 
 figure()
 subplot(3,1,1)
-plot(eul(:,1),'.')
+plot(roll,'.')
+hold on
+plot(roll_truth,'.')
 title('Roll')
 subplot(3,1,2)
-plot(eul(:,2),'.')
+plot(pitch,'.')
+hold on
+plot(pitch_truth,'.')
 title('Pitch')
 subplot(3,1,3)
-plot(eul(:,3),'.')
+plot(yaw,'.')
+hold on
+plot(yaw_truth,'.')
 title('Yaw')
