@@ -50,8 +50,12 @@ for i = 1:numSamps
 
         % Time Update (think this is also wrong)
         samp = gyro(i,:)' + sigmaGyro'.*rand(3,1); % uniform distribution (mean is gyro noise, variance is noise floor)
-        qP(:,j) = q_hat(:,i); % resampling
-        gyroP = gyro(i,:)' + samp; % Particle Gyro
+        qP(:,j) = q_hat(:,i); 
+        gyroP = gyro(i,:)' + samp; % Particle Gyro (resampling based on gyro measurements and noise parameters)
+        
+        % thoughts: quaternion particle is the mean from the previous time
+        % step, resampling occurs by propogating the quaternion through a
+        % time update with random noise creating unique particles
         
         F = [1 -0.5*gyroP(1)*dt -0.5*gyroP(2)*dt -0.5*gyroP(3)*dt;...
             0.5*gyroP(1)*dt 1 0.5*gyroP(3)*dt -0.5*gyroP(2)*dt;...
@@ -79,9 +83,9 @@ for i = 1:numSamps
         
         % --- Likeliehood calc --- %
         dcm_diff = dcm_meas-dcm_time; % difference in DCM matrices
-        rX = dcm_diff(:,1);
-        rY = dcm_diff(:,2);
-        rZ = dcm_diff(:,3);
+        rX = dcm_diff(:,1); % first column
+        rY = dcm_diff(:,2); % second column
+        rZ = dcm_diff(:,3); % third column
         
         L = 1/(norm(rX)*norm(rY)*norm(rZ)); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
         
@@ -97,7 +101,7 @@ for i = 1:numSamps
            
     end
     
-    q_hat(:,i+1) = q_calc; % might be wrong
+    q_hat(:,i+1) = q_calc; % state estimate is overall weighted sum 
     
     q_calc = 0;
         
