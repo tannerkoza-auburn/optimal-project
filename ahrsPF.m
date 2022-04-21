@@ -29,6 +29,7 @@ close all
 % NOTE: If unable to find file or directory, run dataParser.m or check your
 % file name.
 load('vn300Data.mat');
+% load('softsysIMU.mat');
 
 % Extract Fields from IMU Structure
 acc = imu.acc;
@@ -45,26 +46,34 @@ orient = imu.odom;
 dt = mean(diff(imu.time));
 numSamps = length(gyro); % # of Samples
 
+%% Initialization
+
+theta = atan2(-acc(1,1),sqrt(acc(1,2)^2 + acc(1,3)^2)); % Pitch
+phi = atan2(acc(1,2),acc(1,3)); % Roll
+psi = atan2(mag(1,3)*sin(phi) - mag(1,2)*cos(phi), ...
+              mag(1,1)*cos(theta) + mag(1,2)*sin(theta)*sin(phi) ...
+            + mag(1,3)*sin(theta)*cos(phi)); % Yaw
+        
+q0 = eul2quat([psi theta phi])';
+
 %% Particle Filter Parameters
 
-N = 1000; % Number of Particles
+N = 2000; % Number of Particles
 
-ESS_thresh = 0.50*N; % when 50% of particles are "ineffective" resample
+ESS_thresh = 0.75*N; % when 50% of particles are "ineffective" resample
 
-qP = [ones(1,N); zeros(3,N)]; % Initial Quaternions for Particles
+qP = [q0(1)*ones(1,N); q0(2)*ones(1,N); q0(3)*ones(1,N); q0(4)*ones(1,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
 sigmaGyro = std(gyro(start:stop,:)); % 
 
-q_hat = [1;0;0;0]; % overall state estimate
-
-q_calc = 0;
+q_hat = q0; % overall state estimate
 
 W = 1/N*ones(1,N); % particle filter weights
 C = 1; % Confirm what this is (but I think this is a variance term in the posterior weight calcualtion)
 
 %% Particle Filter
 
-for i = 1:numSamps-1
+for i = 2:numSamps-1
 
     for j = 1:N
 
