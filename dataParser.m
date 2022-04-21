@@ -3,7 +3,7 @@
 clear
 clc
 
-useText = 0;
+useText = 0; %test parser set up for softsys data
 
 useBag = 1; % bag parser is setup for vectornav IMU!
 
@@ -59,7 +59,7 @@ end
 
 if useBag
     
-    bagfilename = 'vn300_ahrsPF_2022-04-18-14-21-51.bag';
+    bagfilename = 'vn_heading_truth_2022-04-21-07-52-23.bag';
     bag = rosbag(bagfilename);
     
     %show all topics
@@ -112,6 +112,6 @@ if useBag
         
     end
     
-    save('data/structData/vn300Data.mat','imu');
+    save('data/structData/vn300_heading_ref.mat','imu');
     
 end
