@@ -81,7 +81,7 @@ if useBag
         % --- IMU Accel --- %
         imu.acc(i,1) = struct{i}.LinearAcceleration.X;
         imu.acc(i,2) = struct{i}.LinearAcceleration.Y;
-        imu.acc(i,3) = struct{i}.LinearAcceleration.Z;
+        imu.acc(i,3) = -struct{i}.LinearAcceleration.Z;
         
         imu.time(i) = double(struct{i}.Header.Stamp.Sec)+double(struct{i}.Header.Stamp.Nsec)*1e-9;
         
