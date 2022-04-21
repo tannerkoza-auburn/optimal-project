@@ -59,7 +59,7 @@ end
 
 if useBag
     
-    bagfilename = 'vn_heading_truth_2022-04-21-07-52-23.bag';
+    bagfilename = 'vn300_long_duration_2022-04-21-12-56-32.bag';
     bag = rosbag(bagfilename);
     
     %show all topics
@@ -112,6 +112,6 @@ if useBag
         
     end
     
-    save('data/structData/vn300_heading_ref.mat','imu');
+    save('data/structData/vn300_long_duration.mat','imu');
     
 end

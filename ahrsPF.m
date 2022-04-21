@@ -56,15 +56,16 @@ psi = atan2(mag(1,3)*sin(phi) - mag(1,2)*cos(phi), ...
         
 q0 = eul2quat([psi theta phi])';
 
+n = 4;
 %% Particle Filter Parameters
 
-N = 2000; % Number of Particles
+N = 10^n; % Number of Particles
 
-ESS_thresh = 0.75*N; % when 75% of particles are "ineffective" resample
+ESS_thresh = 1*N; % when 90% of particles are "ineffective" resample
 
 qP = [q0(1)*ones(1,N); q0(2)*ones(1,N); q0(3)*ones(1,N); q0(4)*ones(1,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
-sigmaGyro = std(gyro(start:stop,:)); % 
+sigmaGyro = std(gyro(start:stop,:))*2; % 
 
 q_hat = q0; % overall state estimate
 
