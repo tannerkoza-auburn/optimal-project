@@ -49,7 +49,7 @@ numSamps = length(gyro); % # of Samples
 
 N = 1000; % Number of Particles
 
-ESS_thresh = 0.5*N; % when 50% of particles are "ineffective" resample
+ESS_thresh = 0.50*N; % when 50% of particles are "ineffective" resample
 
 qP = [ones(1,N); zeros(3,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
@@ -69,8 +69,7 @@ for i = 1:numSamps-1
     for j = 1:N
 
         % Time Update (think this is also wrong)
-        samp = gyro(i,:)' + sigmaGyro'.*rand(3,1); % uniform distribution (mean is gyro noise, variance is noise floor)
-        qP(:,j) = qP(:,i); 
+        samp = sigmaGyro'.*rand(3,1); % uniform distribution (mean is gyro noise, variance is noise floor)
         gyroP = gyro(i,:)' + samp; % Particle Gyro (resampling based on gyro measurements and noise parameters)
         
         % thoughts: quaternion particle is the mean from the previous time
@@ -82,7 +81,7 @@ for i = 1:numSamps-1
             0.5*gyroP(2)*dt -0.5*gyroP(3)*dt 1 0.5*gyroP(1)*dt;...
             0.5*gyroP(3)*dt 0.5*gyroP(2)*dt -0.5*gyroP(1)*dt 1];
         
-        qP(:,j) = F*qP(:,j); % Particle Propagation (time Update) % propogate from the same estimate?
+        qP(:,j) = F*qP(:,j); % Particle Propagation (time Update)
         
         dcm_time = dcm_calc(qP(:,j)); % DCM from quaternion estimate
         
@@ -113,29 +112,24 @@ for i = 1:numSamps-1
                 
     end
     
-    W = W./sum(W); % normalize weights
+    W_norm = W./sum(W); % normalize weights
     
-    q_hat(:,i+1) = zeros(4,1); % fill state estimate with zeros to allow summation
-    temp = 0;
+    ESS = 1/(sum(W_norm.^2));
     
-    for j = 1:N
-        
-        q_hat(:,i+1) = q_hat(:,i+1) + W(j)*qP(:,j); % I dont think this is wrong
-        
-        % --- Resampling --- %
-        temp = temp + (N*W(j)-1)^2;
-%       cv = (1/N)*sum(N*w(i)-1)^2   
-    end
-    
-    cv = (1/N)*temp;
-    ESS = N/(1+cv^2);
+    q_hat(:,i+1) = sum(W_norm.*qP,2);
     
     if ESS<ESS_thresh
-       break 
+        % --- Perform Resampling --- % 
+            % Try resampling from select w/ replacement strategy
+            Index = resample(W_norm);
+            qP = qP(:,Index);
+            W = (1/N)*ones(1,N);
     end
-        
-    q_calc = 0;
-        
+    
+    if i == 1018
+        disp('Pause')
+    end
+                
 end
 
 disp('ended')
