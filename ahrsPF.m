@@ -60,7 +60,7 @@ q0 = eul2quat([psi theta phi])';
 
 N = 2000; % Number of Particles
 
-ESS_thresh = 0.75*N; % when 50% of particles are "ineffective" resample
+ESS_thresh = 0.75*N; % when 75% of particles are "ineffective" resample
 
 qP = [q0(1)*ones(1,N); q0(2)*ones(1,N); q0(3)*ones(1,N); q0(4)*ones(1,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
@@ -128,11 +128,13 @@ for i = 2:numSamps-1
     q_hat(:,i+1) = sum(W_norm.*qP,2);
     
     if ESS<ESS_thresh
+        
         % --- Perform Resampling --- % 
             % Try resampling from select w/ replacement strategy
             Index = resample(W_norm);
             qP = qP(:,Index);
             W = (1/N)*ones(1,N);
+            
     end
     
     if i == 1018
