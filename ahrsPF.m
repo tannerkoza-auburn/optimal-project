@@ -25,10 +25,11 @@ numSamps = length(gyro); % # of Samples
 
 N = 500; % Number of Particles
 qP = [ones(1,N); zeros(3,N)]; % Initial Quaternions for Particles
-wP = (1/N)*ones(1,N); % Initial Particle Weights
+wP = (1/N)*ones(N,1); % Initial Particle Weights
 
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
-sigmaGyro = std(gyro(start:stop,:)); % Gyro Floor Noise Standard Deviation
+sigmaGyro = std(gyro(start:stop,:))/100; % Gyro Floor Noise Standard Deviation
+qHatL = zeros(4,numSamps);
 
 %% Particle Filter
 
@@ -49,15 +50,32 @@ for i = 1:numSamps
     end
 
     % Measurement Update
-    theta = atan2(-acc(i,1),sqrt(acc(i,2)^2 + acc(i,3)^2)); % Pitch
-    phi = atan2(acc(i,2),acc(i,3)); % Roll
-    psi = atan2(mag(i,3)*sin(phi) - mag(i,2)*cos(phi), ...
-        mag(i,1)*cos(theta) + mag(i,2)*sin(theta)*sin(phi) ...
-        + mag(i,3)*sin(theta)*cos(phi)); % Yaw
+    [roll, pitch] = acc2RP(acc(i,:));
+    yaw = mag2Y(mag(i,:),roll,pitch);
+    qM = eul2Quat(roll,pitch,yaw);
 
-    qM = [cos(psi/2)*cos(theta/2)*cos(phi/2) + sin(psi/2)*sin(theta/2)*sin(phi/2);
-        cos(psi/2)*cos(theta/2)*sin(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2);
-        cos(psi/2)*sin(theta/2)*cos(phi/2) + sin(psi/2)*cos(theta/2)*sin(phi/2);
-        sin(psi/2)*cos(theta/2)*cos(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2)];
+    % Likelihood Function
+    qMdcm = quat2dcm(qM');
+    qPdcm = quat2dcm(qP');
+    dcmDiff = qMdcm - qPdcm;
+    L = 1/vecnorm((dcmDiff(:,1,:)).*vecnorm(dcmDiff(:,2,:)).*vecnorm(dcmDiff(:,3,:)));
+    wP = wP.*permute(L,[3 2 1]);
+    wP = wP/sum(wP);
+
+    % Orientation Estimate
+    qHat = sum(wP'.*qP,2);
+
+    % Resampling
+    nEff = 1/sum(wP.^2);
+    nEffT = 0.5*N; % Effective Particle Threshold
+
+    if nEff<nEffT
+        idx = resample(wP,N);
+        qP = qP(:,idx);
+        wP = (1/N)*ones(N,1);
+    end
+
+    % Log
+    qHatL(:,i) = qHat;
 
 end
