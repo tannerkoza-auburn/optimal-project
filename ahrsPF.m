@@ -59,7 +59,7 @@ q0 = eul2quat([psi theta phi])';
 n = 4;
 %% Particle Filter Parameters
 
-N = 10^n; % Number of Particles
+N = 0.25*10^n; % Number of Particles
 
 ESS_thresh = 1*N; % when 90% of particles are "ineffective" resample
 
