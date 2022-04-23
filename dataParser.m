@@ -18,7 +18,8 @@ if numFiles == 0
 end
 
 % IMU Topic
-imuTopic = '';
+imuTopic = 'vectornav/IMU';
+magTopic = 'vectornav/Mag';
 
 % Structure Population
 for i = 1:numFiles
@@ -40,11 +41,17 @@ for i = 1:numFiles
         imu.gyro = imuArr(:,4:6);
         imu.mag = imuArr(:,7:9);
 
+        save(destFile,"imu")
+        clearvars imu
+
     else
+
         % Populate Struct
         imu = importIMUBag(inDir,thisFile,imuTopic);
+        mag = importMagBag(inDir,thisFile,magTopic);
+        save(destFile,'imu','mag')
+        clearvars imu
+
     end
 
-    save(destFile,"imu")
-    clearvars imu
 end
