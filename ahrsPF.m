@@ -28,7 +28,7 @@ close all
 
 % NOTE: If unable to find file or directory, run dataParser.m or check your
 % file name.
-load('vn300Data.mat');
+load('vn300_long_duration.mat');
 % load('softsysIMU.mat');
 
 % Extract Fields from IMU Structure
@@ -59,13 +59,13 @@ q0 = eul2quat([psi theta phi])';
 n = 4;
 %% Particle Filter Parameters
 
-N = 500; % Number of Particles
+N = 1; % Number of Particles
 
-ESS_thresh = 1*N; % when 90% of particles are "ineffective" resample
+ESS_thresh = 0*N; % when 90% of particles are "ineffective" resample
 
 qP = [q0(1)*ones(1,N); q0(2)*ones(1,N); q0(3)*ones(1,N); q0(4)*ones(1,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
-sigmaGyro = std(gyro(start:stop,:))*2; % 
+sigmaGyro = std(gyro(start:stop,:)); % 
 
 q_hat = q0; % overall state estimate
 
@@ -95,31 +95,37 @@ for i = 2:numSamps-1
         
         dcm_time = dcm_calc(qP(:,j)); % DCM from quaternion estimate
         
+        if i <= 1500
         % Measurement Update
-        theta = atan2(-acc(i,1),sqrt(acc(i,2)^2 + acc(i,3)^2)); % Pitch
-        phi = atan2(acc(i,2),acc(i,3)); % Roll
-        psi = atan2(mag(i,3)*sin(phi) - mag(i,2)*cos(phi), ...
-            mag(i,1)*cos(theta) + mag(i,2)*sin(theta)*sin(phi) ...
-            + mag(i,3)*sin(theta)*cos(phi)); % Yaw
         
-        % --- Measured Quaternion! --- %
-        qM(:,j) = [cos(psi/2)*cos(theta/2)*cos(phi/2) + sin(psi/2)*sin(theta/2)*sin(phi/2);
-                   cos(psi/2)*cos(theta/2)*sin(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2);
-                   cos(psi/2)*sin(theta/2)*cos(phi/2) + sin(psi/2)*cos(theta/2)*sin(phi/2);
-                   sin(psi/2)*cos(theta/2)*cos(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2)];
-        
-        dcm_meas = dcm_calc(qM(:,j));
-        
-        % --- Likeliehood calc --- %
-        dcm_diff = dcm_meas-dcm_time; % difference in DCM matrices
-        rX = dcm_diff(:,1); % first column
-        rY = dcm_diff(:,2); % second column
-        rZ = dcm_diff(:,3); % third column
-        
-        L = 1/(norm(rX)*norm(rY)*norm(rZ)); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
-        
-        W(j) = W(j)*L; % dont't think this is wrong
+%         theta = atan2(-acc(i,1),sqrt(acc(i,2)^2 + acc(i,3)^2)); % Pitch
+%         phi = atan2(acc(i,2),acc(i,3)); % Roll
+%         psi = atan2(mag(i,3)*sin(phi) - mag(i,2)*cos(phi), ...
+%             mag(i,1)*cos(theta) + mag(i,2)*sin(theta)*sin(phi) ...
+%             + mag(i,3)*sin(theta)*cos(phi)); % Yaw
+%         
+%         % --- Measured Quaternion! --- %
+%         
+%         qM(:,j) = [cos(psi/2)*cos(theta/2)*cos(phi/2) + sin(psi/2)*sin(theta/2)*sin(phi/2);
+%                    cos(psi/2)*cos(theta/2)*sin(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2);
+%                    cos(psi/2)*sin(theta/2)*cos(phi/2) + sin(psi/2)*cos(theta/2)*sin(phi/2);
+%                    sin(psi/2)*cos(theta/2)*cos(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2)];
+%         
+%         dcm_meas = dcm_calc(qM(:,j));
+%         
+%         % --- Likeliehood calc --- %
+%         
+%         dcm_diff = dcm_meas-dcm_time; % difference in DCM matrices
+%         rX = dcm_diff(:,1); % first column
+%         rY = dcm_diff(:,2); % second column
+%         rZ = dcm_diff(:,3); % third column
+%         
+%         L = 1/(norm(rX)*norm(rY)*norm(rZ)); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
+%         
+%         W(j) = W(j)*L; % dont't think this is wrong
                 
+        end
+        
     end
     
     W_norm = W./sum(W); % normalize weights
@@ -137,51 +143,8 @@ for i = 2:numSamps-1
             W = (1/N)*ones(1,N);
             
     end
-    
-    if i == 1018
-        disp('Pause')
-    end
                 
 end
 
 disp('ended')
-%% Converting to Euler Angles
-
-% [r,c] = size(q_hat);
-% 
-% q_hat = q_hat';
-% 
-% for i = 1:c
-%     eul(i,:) = quat2eul(q_hat(i,:));
-% end
-% 
-% [r,c] = size(orient);
-% 
-% for i = 1:r
-%    truth(i,:) = quat2eul(orient(i,:)); 
-% end
-% 
-% yaw = rad2deg(eul(:,1));
-% pitch = rad2deg(eul(:,2));
-% roll = rad2deg(eul(:,3));
-% 
-% yaw_truth = rad2deg(truth(:,1));
-% pitch_truth = rad2deg(truth(:,2));
-% roll_truth = rad2deg(truth(:,3));
-% 
-% figure()
-% subplot(3,1,1)
-% plot(roll,'.')
-% hold on
-% plot(roll_truth,'.')
-% title('Roll')
-% subplot(3,1,2)
-% plot(pitch,'.')
-% hold on
-% plot(pitch_truth,'.')
-% title('Pitch')
-% subplot(3,1,3)
-% plot(yaw,'.')
-% hold on
-% plot(yaw_truth,'.')
-% title('Yaw')
+%% Integrating
