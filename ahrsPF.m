@@ -2,7 +2,7 @@
 
 clear
 clc
-close all
+% close all
 
 % Nicholas Ott questions from paper:
     % Eq (22) -> what is DCM_*q_hat? (second DCM)
@@ -28,7 +28,7 @@ close all
 
 % NOTE: If unable to find file or directory, run dataParser.m or check your
 % file name.
-load('vn300Data.mat');
+load('vn300_long_duration.mat');
 % load('softsysIMU.mat');
 
 % Extract Fields from IMU Structure
@@ -59,13 +59,13 @@ q0 = eul2quat([psi theta phi])';
 n = 4;
 %% Particle Filter Parameters
 
-N = 1000; % Number of Particles
+N = 10^n; % Number of Particles
 
 ESS_thresh = 1*N; % when 90% of particles are "ineffective" resample
 
 qP = [q0(1)*ones(1,N); q0(2)*ones(1,N); q0(3)*ones(1,N); q0(4)*ones(1,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
-sigmaGyro = std(gyro(start:stop,:))*3; % 
+sigmaGyro = std(gyro(start:stop,:)); % 
 
 quat_std = quat_std_gen(start,stop,acc,mag);
 
@@ -75,12 +75,13 @@ R = [quat_std(1)^2 0             0             0;...
      0             0             quat_std(3)^2 0;...
      0             0             0             quat_std(4)^2];
  
-R = 1000000*R;
+R = 10000*R;
  
 q_hat = q0; % overall state estimate
 
 W = 1/N*rand(1,N); % particle filter weights
-C = 1; % Confirm what this is (but I think this is a variance term in the posterior weight calcualtion)
+
+C = 0.001;
 
 %% Particle Filter
 
@@ -123,24 +124,28 @@ for i = 2:numSamps-1
         dcm_meas = dcm_calc(qM(:,j));
         
         % --- Likeliehood calc --- %
-        
-%         innovation = qM(:,j) - qP(:,j);
 
         diff = dcm_meas-dcm_time; % difference between measured DCM and time propogated DCM
+        
+        innovation = qM(:,j) - qP(:,j);
         
         rX = norm(diff(:,1));
         rY = norm(diff(:,2));
         rZ = norm(diff(:,3));
         
-%         L = exp(-0.5*innovation'*inv(R)*innovation); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
-
         L = 1/(rX*rY*rZ);
+        
+        C = exp(-0.5*innovation'*inv(R)*innovation); % confirm this is right!
 
-        W(j) = W(j)*L; % dont't think this is wrong
+        W(j) = W(j)*L*C; % multiply or divide by C?
                         
     end
     
     W_norm = W./sum(W); % normalize weights
+    
+    if i == 900
+        disp('Pause')
+    end
     
     ESS = 1/(sum(W_norm.^2));
     
@@ -159,4 +164,28 @@ for i = 2:numSamps-1
 end
 
 disp('ended')
-%% Integrating
+%% Plotting
+
+meas = quat2eul(q_hat');
+
+time = quat2eul(orient);
+
+figure()
+subplot(3,1,1)
+plot(rad2deg(meas(:,2)),'.')
+hold on
+plot(rad2deg(time(:,2)),'.')
+title('Pitch')
+legend('PF','VN 300')
+subplot(3,1,2)
+plot(rad2deg(meas(:,3)),'.')
+hold on
+plot(rad2deg(time(:,3)),'.')
+title('Roll')
+legend('PF','VN 300')
+subplot(3,1,3)
+plot(rad2deg(meas(:,1)),'.')
+hold on
+plot(rad2deg(time(:,1)),'.')
+title('Yaw')
+legend('PF','VN 300')

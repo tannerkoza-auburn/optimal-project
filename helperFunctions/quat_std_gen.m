@@ -21,7 +21,7 @@ function out = quat_std_gen(start,stop,acc,mag)
                     + mag(3,i)*sin(theta)*cos(phi)); % Yaw
                 
         quat(i,:) = eul2quat([psi theta phi]);
-
+        
     end
     
 out = std(quat);
