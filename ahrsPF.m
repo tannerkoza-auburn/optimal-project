@@ -28,7 +28,7 @@ close all
 
 % NOTE: If unable to find file or directory, run dataParser.m or check your
 % file name.
-load('vn300_long_duration.mat');
+load('vn300Data.mat');
 % load('softsysIMU.mat');
 
 % Extract Fields from IMU Structure
@@ -59,17 +59,27 @@ q0 = eul2quat([psi theta phi])';
 n = 4;
 %% Particle Filter Parameters
 
-N = 1; % Number of Particles
+N = 1000; % Number of Particles
 
-ESS_thresh = 0*N; % when 90% of particles are "ineffective" resample
+ESS_thresh = 1*N; % when 90% of particles are "ineffective" resample
 
 qP = [q0(1)*ones(1,N); q0(2)*ones(1,N); q0(3)*ones(1,N); q0(4)*ones(1,N)]; % Initial Quaternions for Particles
 [start,stop] = staticGyro(gyro, 0.2); % Static Indices
-sigmaGyro = std(gyro(start:stop,:)); % 
+sigmaGyro = std(gyro(start:stop,:))*3; % 
 
+quat_std = quat_std_gen(start,stop,acc,mag);
+
+% --- Measurement Covariance --- %
+R = [quat_std(1)^2 0             0             0;...
+     0             quat_std(2)^2 0             0;...
+     0             0             quat_std(3)^2 0;...
+     0             0             0             quat_std(4)^2];
+ 
+R = 1000000*R;
+ 
 q_hat = q0; % overall state estimate
 
-W = 1/N*ones(1,N); % particle filter weights
+W = 1/N*rand(1,N); % particle filter weights
 C = 1; % Confirm what this is (but I think this is a variance term in the posterior weight calcualtion)
 
 %% Particle Filter
@@ -95,37 +105,39 @@ for i = 2:numSamps-1
         
         dcm_time = dcm_calc(qP(:,j)); % DCM from quaternion estimate
         
-        if i <= 1500
         % Measurement Update
         
-%         theta = atan2(-acc(i,1),sqrt(acc(i,2)^2 + acc(i,3)^2)); % Pitch
-%         phi = atan2(acc(i,2),acc(i,3)); % Roll
-%         psi = atan2(mag(i,3)*sin(phi) - mag(i,2)*cos(phi), ...
-%             mag(i,1)*cos(theta) + mag(i,2)*sin(theta)*sin(phi) ...
-%             + mag(i,3)*sin(theta)*cos(phi)); % Yaw
-%         
-%         % --- Measured Quaternion! --- %
-%         
-%         qM(:,j) = [cos(psi/2)*cos(theta/2)*cos(phi/2) + sin(psi/2)*sin(theta/2)*sin(phi/2);
-%                    cos(psi/2)*cos(theta/2)*sin(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2);
-%                    cos(psi/2)*sin(theta/2)*cos(phi/2) + sin(psi/2)*cos(theta/2)*sin(phi/2);
-%                    sin(psi/2)*cos(theta/2)*cos(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2)];
-%         
-%         dcm_meas = dcm_calc(qM(:,j));
-%         
-%         % --- Likeliehood calc --- %
-%         
-%         dcm_diff = dcm_meas-dcm_time; % difference in DCM matrices
-%         rX = dcm_diff(:,1); % first column
-%         rY = dcm_diff(:,2); % second column
-%         rZ = dcm_diff(:,3); % third column
-%         
-%         L = 1/(norm(rX)*norm(rY)*norm(rZ)); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
-%         
-%         W(j) = W(j)*L; % dont't think this is wrong
-                
-        end
+        theta = atan2(-acc(i,1),sqrt(acc(i,2)^2 + acc(i,3)^2)); % Pitch
+        phi = atan2(acc(i,2),acc(i,3)); % Roll
+        psi = atan2(mag(i,3)*sin(phi) - mag(i,2)*cos(phi), ...
+            mag(i,1)*cos(theta) + mag(i,2)*sin(theta)*sin(phi) ...
+            + mag(i,3)*sin(theta)*cos(phi)); % Yaw
         
+        % --- Measured Quaternion! --- %
+        
+        qM(:,j) = [cos(psi/2)*cos(theta/2)*cos(phi/2) + sin(psi/2)*sin(theta/2)*sin(phi/2);
+                   cos(psi/2)*cos(theta/2)*sin(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2);
+                   cos(psi/2)*sin(theta/2)*cos(phi/2) + sin(psi/2)*cos(theta/2)*sin(phi/2);
+                   sin(psi/2)*cos(theta/2)*cos(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2)];
+        
+        dcm_meas = dcm_calc(qM(:,j));
+        
+        % --- Likeliehood calc --- %
+        
+%         innovation = qM(:,j) - qP(:,j);
+
+        diff = dcm_meas-dcm_time; % difference between measured DCM and time propogated DCM
+        
+        rX = norm(diff(:,1));
+        rY = norm(diff(:,2));
+        rZ = norm(diff(:,3));
+        
+%         L = exp(-0.5*innovation'*inv(R)*innovation); % Calculate volume of ellipsoid defined by all 3 axes (rX,rY,rZ)
+
+        L = 1/(rX*rY*rZ);
+
+        W(j) = W(j)*L; % dont't think this is wrong
+                        
     end
     
     W_norm = W./sum(W); % normalize weights
@@ -140,7 +152,7 @@ for i = 2:numSamps-1
             % Try resampling from select w/ replacement strategy
             Index = resample(W_norm);
             qP = qP(:,Index);
-            W = (1/N)*ones(1,N);
+            W = (1/N)*rand(1,N);
             
     end
                 
